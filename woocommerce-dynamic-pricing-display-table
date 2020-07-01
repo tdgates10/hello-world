@@ -1,0 +1,120 @@
+<?php
+//I'm using this with Foundation Accordion to place the custom tables in a custom WooCommerce tab. Place in your functions file.
+//Add Quanity Discount Tab
+add_filter( 'woocommerce_product_tabs', 'woo_new_product_tab' );
+function woo_new_product_tab( $tabs ) {
+	$tabs['quanitity_tab'] = array(
+		'title' 	=> __( 'Quantity Discounts', 'woocommerce' ),
+		'priority' 	=> 5,
+		'callback' 	=> 'show_pricing_rules'
+	);
+	return $tabs;
+}
+//I'm throwing this into a custom tab listed above. You can call it in a hook as well.
+function show_pricing_rules() {
+	global $woocommerce, $product, $post;
+	if( $product->has_child() ) { //Variable product
+	$pricing_groups = get_post_meta( $post->ID, '_pricing_rules', true );
+	$table_count = 0;
+	//I'm using Foundation 6 Accordion to display all my tables in. I had quite a bit so you can format as you wish.
+	?>
+	<h2>Quanity Discounts</h2>
+	<p>Select the book size and desired sheets below to see the quanity discounts. <strong>These will be applied at checkout.</strong></p>
+	<ul class="accordion qd-accordion" data-accordion data-allow-all-closed="true">
+	<?php
+	foreach ($pricing_groups as $pricing_rules) {
+		$table_count ++;
+		$var_ids = array();
+		$cfs = array();
+		$attribute_slugs = array();
+		$attr_slugs = array();
+		$variation_names = array();
+		$name = array();
+		$var_ids = $pricing_rules['variation_rules']['args']['variations'];
+
+		// Product Variation Name(s)
+		foreach ($var_ids as $var_id) {
+				$cfs = get_post_custom($var_id);
+				$attribute_slugs[] = $cfs['attribute_pa_size']; //These are you product attributes. You need "attribute_pa_" and then whatever your attribute slug is.
+				$attribute_slugs[] = $cfs['attribute_pa_sheets']; //Same as above if you want to display both attribute names.
+		}
+
+		foreach ($attribute_slugs as $attr_slugs) {
+
+				foreach ($attr_slugs as $attr_slug) {
+					$textx = array('-x-', '-'); //array to replace unwated characters
+					$textdash = array(' x ', '.'); //same
+					$variation_name = str_replace($textx, $textdash, $attr_slug); //final replace
+					$variation_names[] = ucwords($variation_name);
+				}
+		}
+		?>
+		  <li class="accordion-item" data-accordion-item>
+		    <a href="#<?php echo 'table_'.$table_count; ?>" class="accordion-title">
+		      <?php
+		      $count = 0;
+		      foreach ($variation_names as $name) {
+		        $count ++;
+		        if ( $count > 1 ) {
+		          echo " | ".$name.' Sheets';
+		        } else {
+		          echo $name;
+		        }
+		      }
+		      ?>
+		    </a>
+		    <div class="accordion-content" data-tab-content id="<?php echo 'table_'.$table_count; ?>">
+		      <table class="qty-table" id="<?php echo 'table_'.$table_count; ?>">
+		      <thead>
+		        <tr>
+		          <th>Quantity</th>
+		          <th>Unit Discount</th>
+		        </tr>
+		      </thead>
+		      <tbody>
+		        <?php
+		        $rules = $pricing_rules['rules'];
+		        foreach ($rules as $rule) {
+		          $from = $rule['from'];
+		          $to = $rule['to'];
+		          $amount = $rule['amount'];
+		          ?><tr><td><?php echo $from.' - '.$to; ?></td><td>$ <?php echo $amount; ?></td></tr><?php
+		        }
+		        ?>
+		      </tbody>
+		      </table>
+		    </div>
+		  </li>
+		<?php
+	} ?>
+</ul>
+	<?php }
+
+	else { // Simple product with no variations
+	$id = get_the_id();
+	$pricing_groups = get_post_meta( $id, '_pricing_rules', true );
+	$name = get_the_title();
+	$table_id = str_replace(' ', '_', $name);
+	$table_id = strtolower($table_id);
+	foreach ($pricing_groups as $pricing_rules) : ?>
+
+	<table class="dynamic_pricing_table" id="<?php echo $table_id; ?>">
+	<tr ><td colspan="2"><span class="title"><?php the_title(); ?></span></td></tr>
+	<tr><th>Quantity</th><th>Cost Per</th></tr>
+
+	<?php
+		$rules = $pricing_rules['rules'];
+		foreach ($rules as $rule) :
+		$from = $rule['from'];
+		$to = $rule['to'];
+		$amount = $rule['amount'];
+	?>
+		<tr><td><?php echo $from.' - '.$to; ?></td><td><?php echo $amount; ?></td></tr><?php
+		endforeach;
+	?>
+	<tr><td colspan="2"><small>*Price adjustments will be reflected in the cart.</small></td></tr>
+	</table><?php
+	endforeach;
+	}
+}
+?>
